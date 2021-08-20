@@ -69,12 +69,12 @@ Burners={"NG":[G_50_7,G_50_11,G_50_15,G_70_15,G_70_18,G_70_22,G_100_18,G_100_22,
 
 
 class SSV:
-    def __init__(self, capacity, LHV=34.0, ):
+    def __init__(self, capacity, LHV=34.0):
         self.capacity=capacity
         self.LHV=LHV
 
     def flow(self):
-        return math.ceil(3600*self.capacity/self.LHV)
+        return round(3600*self.capacity/self.LHV,-2)
     def diameter(self):
         if 300<=self.flow()<=500:
             return "DN 65"
