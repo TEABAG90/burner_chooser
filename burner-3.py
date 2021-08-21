@@ -8,6 +8,7 @@ from tkinter import filedialog
 from tkinter.ttk import Combobox
 import xlsxwriter
 import json
+import datetime
 
 def burner_choice (capacity,resistance):
     
@@ -48,6 +49,9 @@ def check_dimensions():
 
 
 def quotation_maker():
+
+    current_date = datetime.date.today().strftime("%d.%m.%Y")
+
 
     with open("prices.json","r",encoding="utf-8") as pr:
         prices=json.load(pr)
@@ -145,9 +149,9 @@ def quotation_maker():
     
 
     ws.write("A3","СПЕЦИФИКАЦИЯ:"+"                  "+"№ "+entry_number.get(),bold_Arial11_format)
-    ws.write_rich_string("A4",bold_Arial11_format,"Приложение к контракту:"+"      ",stand_Arial11_format,"№ "+entry_number.get())
+    ws.write_rich_string("A4",bold_Arial11_format,"Приложение к контракту:"+"      ",stand_Arial11_format,"№ "+entry_number.get() + " от " + current_date + " г.")
     ws.write_rich_string("A6",bold_Arial11_format,"Условия оплаты:"+"                    ",stand_Arial11_format,"предоплата 70%, 30% перед отгрузкой с завода в Германии")
-    ws.write("A8","Условия поставки:"+"                 "+"DDP Москва",bold_Arial11_format)
+    ws.write("A8","Условия поставки:"+"                 "+"DDP Москва, включая 20% НДС",bold_Arial11_format)
     ws.write_rich_string("A9",bold_Arial11_format,"Срок поставки:"+"                       ",stand_Arial11_format, entry_delivery_time.get() + " недель после согласования всех технических условий")
     ws.write("A10","                                                   и поступления предоплаты на счёт продавца",stand_Arial11_format)
 
@@ -220,7 +224,7 @@ def quotation_maker():
             insert_5="природный газ по ГОСТ 5542-2014, дизельное топливо по ГОСТ 305-2013."
             insert_8=("Тепловая мощность горелки: минимальная при работе на газе – " + str(chosen_burner.capacity_range[0][0]).replace(".",",") + 
                     " МВт, на жидком топливе - " + str(chosen_burner.capacity_range[1][0]).replace(".",",") +" МВт, "
-                    f"требуемая – " + str(capacity).replace(".",",") + " МВт, максимальная – " + str(chosen_burner.capacity_range[0][0]).replace(".",",") +" МВт.\n")
+                    f"требуемая – " + str(capacity).replace(".",",") + " МВт, максимальная – " + str(chosen_burner.capacity_range[0][1]).replace(".",",") +" МВт.\n")
             burner_field_0="Комбинированная блочная промышленная горелка "
             burner_field_9=(f"Регулирование мощности – модулируемое.\n"+
                     f"Диапазон рабочего регулирования при работе на газе – {chosen_burner.turndown_ratio[0]}, " 
@@ -255,7 +259,7 @@ def quotation_maker():
                     "Сопротивление газоходов котла - " + str(resistance).replace(".",",") +" мбар.\n" 
                     f"Топливо – " + insert_5 + "\n" + insert_8)
         burner_field_10=(f"Примечание {remark_counter}: Стандартные условия эксплуатации: высота над уровнем моря - 250 м макс.," +
-                        " установка в котельной. Температура воздуха горения - 5 °С мин., 55 °С макс." +
+                        " установка в котельной. Температура воздуха горения - мин. 5 °С, макс. 55 °С. " +
                         "Исполнение горелки - не взрывозащищенное. Напряжение силовое - 400В,50Гц, напряжение цепей управления - 230В,50Гц.")
         
         remark_counter+=1
@@ -307,7 +311,7 @@ def quotation_maker():
         global remark_counter
         seavis_field_1="Автоматика "
         seavis_field_2="Se@vis Compact"
-        seavis_field_3=("с функциями топочного автомата, электронного связанного регулятора соотношения топливо/воздух, " +
+        seavis_field_3=(" с функциями топочного автомата, электронно-связанного регулятора соотношения топливо/воздух, " +
                         "вывода текстовых и графических сообщений о режимах работы и неисправностях горелки, с современным цветным дисплеем для визуализации.\n" +
                         "Шкаф с автоматикой смонтирован на горелке.\n")
         seavis_field_4=f"Примечание {remark_counter}: Допустимая температура окружающей среды – 5 ÷ 50 °С.\n"
@@ -373,7 +377,7 @@ def quotation_maker():
                             stand_Arial10_format,vsd_field_1,
                             bold_Arial10_format,vsd_field_2,
                             b_format)
-        ws.write_formula(c_cell,"=(" + prices["vsd"][chosen_vsd.motor_rating] + "*1.1)/(1.18*1.12*0.45)",c_format)
+        ws.write_formula(c_cell,"=(" + prices["vsd"][chosen_vsd.motor_rating] + "*1.1)/(1.2*1.12*0.45)",c_format)
         ws.set_row(int(b_cell[1:])-1,75)
     
     def load_feedback_field(b_cell,c_cell):
@@ -416,7 +420,7 @@ def quotation_maker():
         global remark_counter,chosen_booster_station
         chosen_booster_station=Booster_station(capacity)
         booster_station_field_1=(f"Насосный агрегат выносной на поддоне MOG {chosen_booster_station.size()}, {chosen_booster_station.motor_rating()} "
-                                "кВт, 380 В, 50 Гц высокого давления 30 бар в составе:"
+                                "кВт, 380 В, 50 Гц высокого давления 30 бар, включая: "
                                 "перепускной клапан, предохранительный клапан, фильтр, манометр, вакуумметр, реле давления мин., запорный кран, газовоздухоотделитель.\n")
         booster_station_field_2=f"Примечание {remark_counter}: Со стороны заказчика обеспечивается: подвод напряжения и защита предохранителями (400 В, 50 Гц)."
         remark_counter+=1
@@ -433,7 +437,7 @@ def quotation_maker():
 
     def fuel_fitting_station_field(b_cell,c_cell):
         fuel_fitting_station_field=("Выносная жидкотопливная арматура на поддоне.\n"
-                                    "Состав: механически связанные шаровые краны в подающей и обратной линиях, "
+                                    "Включая: механически связанные шаровые краны в подающей и обратной линиях, "
                                     "грязеуловитель, реле давления топлива мин. и макс., "
                                     "2 предохранительных клапана с пневмоприводами, перепускной клапан, "
                                     "управляющие электромагнитные клапаны, манометры.\n"
@@ -462,6 +466,7 @@ def quotation_maker():
         ws.write(e_cell,1,d_e_f_format)
         ws.write(f_cell,1.12,d_e_f_format)
         g_formula="=ROUND(("+c_cell+"-("+c_cell+"/100)*"+d_cell+")*"+e_cell+"*"+f_cell+",2)"
+        
         ws.write_formula(g_cell,g_formula,g_h_i_k_format)
         h_formula="=ROUND("+g_cell+"*0.2,2)"
         ws.write_formula(h_cell,h_formula,g_h_i_k_format)
@@ -499,7 +504,7 @@ def quotation_maker():
             current_number+=1
 
     current_string+=1
-    result_string=current_string
+    summation_string=current_string
     ws.write("A"+str(current_string),"Стоимость товара в Евро (без дополнительного оборудования):",bold_Arial11_format)
     result_price_1_burner="=K" + str(result_rows[0])
     for row in result_rows[1:]:
@@ -520,24 +525,29 @@ def quotation_maker():
     ws.write("K"+str(current_string),0,result_format)
 
     current_string+=2
-
-    if number_of_burners==1:
-        itogo_string="ИТОГО сумма к оплате в Евро за 1 горелку с принадлежностями"
-    elif 1<number_of_burners<5:
-        itogo_string=f"ИТОГО сумма к оплате в Евро за {number_of_burners} горелки с принадлежностями"
-    elif 4<number_of_burners<11:
-        itogo_string=f"ИТОГО сумма к оплате в Евро за {number_of_burners} горелок с принадлежностями"
-    ws.write("A"+str(current_string),itogo_string,bold_Arial11_format)
-
+    ws.write("A"+str(current_string),"ИТОГО сумма к оплате в Евро за 1 горелку с принадлежностями",bold_Arial11_format)
     current_string+=1
-
-    ws.write("A"+str(current_string),"без дополнительного оборудования) на условиях поставки DDP Москва,",bold_Arial11_format)
-
+    ws.write("A"+str(current_string),"(без дополнительного оборудования) на условиях поставки DDP Москва,",bold_Arial11_format)
     current_string+=1
-
     ws.write("A"+str(current_string),f"включая 20% НДС, нетто (со скидкой для {entry_company.get()}):",bold_Arial11_format)
-    ws.write_formula("K"+str(current_string),"=K" + str(result_string) + "*" + str(number_of_burners),result_format)
+    ws.write_formula("K"+str(current_string),"=K" + str(summation_string) + "K" + str(summation_string+2),result_format)
+    result_string_1_burner=current_string
 
+    if number_of_burners>1:
+
+        current_string+=2
+        if 1<number_of_burners<5:
+            itogo_string=f"ИТОГО сумма к оплате в Евро за {number_of_burners} горелки с принадлежностями"
+        elif 4<number_of_burners<11:
+            itogo_string=f"ИТОГО сумма к оплате в Евро за {number_of_burners} горелок с принадлежностями"
+        ws.write("A"+str(current_string),itogo_string,bold_Arial11_format)
+        current_string+=1
+        ws.write("A"+str(current_string),"(без дополнительного оборудования) на условиях поставки DDP Москва,",bold_Arial11_format)
+        current_string+=1
+        ws.write("A"+str(current_string),f"включая 20% НДС, нетто (со скидкой для {entry_company.get()}):",bold_Arial11_format)
+        ws.write_formula("K"+str(current_string),"=K" + str(result_string_1_burner) + "*" + str(number_of_burners),result_format)
+    
+    
     current_string+=2
 
     if option_list:
@@ -973,7 +983,7 @@ label_number=Label(frame_common_data,text="Number of offer")
 entry_number=Entry(frame_common_data)
 label_delivery_time=Label(frame_common_data,text="Delivery time, weeks")
 entry_delivery_time=Entry(frame_common_data)
-entry_delivery_time.insert(END,"12-14")
+entry_delivery_time.insert(END,"17-19")
 entry_discount=Entry(frame_common_data)
 entry_discount.insert(END,"30")
 combo_number_of_burners=Combobox(frame_common_data,values=(1,2,3,4,5,6,7,8,9,10),width=3)
