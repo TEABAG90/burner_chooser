@@ -74,7 +74,7 @@ class SSV:
         self.LHV=LHV
 
     def flow(self):
-        return round(3600*self.capacity/self.LHV,-2)
+        return int(round(3600*self.capacity/self.LHV,-2))
     def diameter(self):
         if 300<=self.flow()<=500:
             return "DN 65"
