@@ -50,6 +50,16 @@ def check_dimensions():
 
 
 
+def inside_marks(string):
+    """Возвращает текст из строки внутри кавычек «»,
+    если кавычек нет, саму строку"""
+    try:
+        open_mark = string.index("«")
+        close_mark = string.index("»")
+        return string[open_mark+1:close_mark]
+    except ValueError as er:
+        return string
+
 
 
 def quotation_maker():
@@ -112,7 +122,9 @@ def quotation_maker():
         folder=f.read()
     if not folder:
         folder=os.path.expanduser("~")
-    mypath=os.path.join(folder,entry_number.get()+" "+str(chosen_burner)+" "+entry_boiler_name.get()+" "+entry_boiler_capacity.get()+" МВт "+entry_company.get()+".xlsx")
+    company = entry_company.get()
+    company = inside_marks(company)
+    mypath=os.path.join(folder,entry_number.get()+" "+str(chosen_burner)+" "+entry_boiler_name.get().strip()+" "+entry_boiler_capacity.get().strip()+" МВт "+ company.strip() +".xlsx")
     print(mypath)
     wb=xlsxwriter.Workbook(mypath)
     ws=wb.add_worksheet()
@@ -310,7 +322,6 @@ def quotation_maker():
 
     def gas_control_section_field(b_cell,c_cell):
         chosen_gas_control_section = Gas_control_section(capacity)
-        
         gas_control_section_field_1 = "Газовый регулирующий участок"
         gas_control_section_field_2 = (f" высокого давления {chosen_gas_control_section.size()[0]}-{chosen_gas_control_section.size()[1]}/{chosen_gas_control_section.size()[2]}-{chosen_gas_control_section.size()[3]} "
                                     f"для расхода газа {chosen_gas_control_section.max_flow()} нм³/час., входное давление газа – 3 бар, {chosen_gas_control_section.max_pressure()} бар макс., "
