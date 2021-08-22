@@ -1,14 +1,18 @@
 
 import os
 import math
-from classics import Burner, GL_200_37, GL_200_45, GL_200_55, GL_200_75, GL_280_75,SSV,Silencer,Star_delta,VSD,Booster_station,Burners
+import xlsxwriter
+import json
+import datetime
+
+from collections import namedtuple
+from gas_control_section import Gas_control_section
+from classics import Burner,SSV,Silencer,Star_delta,VSD,Booster_station,Burners
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
 from tkinter.ttk import Combobox
-import xlsxwriter
-import json
-import datetime
+
 
 def burner_choice (capacity,resistance):
     
@@ -73,18 +77,18 @@ def quotation_maker():
 
 
 
-    equipment_dict={"burner":"main", "fuel_fitting_station":status_fuel_fitting_station_,"SSV":status_SSV.get(),
-                    "booster_station":status_booster_station_,"flow_meter":status_flow_meter_,
-                    "flame_monitoring":status_flame_monitoring.get(),"seavis":status_seavis.get(),"star_delta":status_star_delta.get(),
-                    "silencer":status_silencer.get(),"monoblock_vsd":status_monoblock_vsd.get(), "seavis_vsd":status_seavis_vsd.get(), 
-                    "vsd":status_vsd.get(),"load_feedback":status_load_feedback.get(),"BUS_interface":status_bus_interface.get(),
-                    "O2_trim":status_o2_trim.get(),"O2_system":status_o2_system.get()}
+    equipment_dict={"burner":"main", "fuel_fitting_station":status_fuel_fitting_station_, "SSV":status_SSV.get(),
+                    "gas_control_section":status_gas_control_section.get(), "booster_station":status_booster_station_, "flow_meter":status_flow_meter_,
+                    "flame_monitoring":status_flame_monitoring.get(), "seavis":status_seavis.get(), "star_delta":status_star_delta.get(),
+                    "silencer":status_silencer.get(), "monoblock_vsd":status_monoblock_vsd.get(), "seavis_vsd":status_seavis_vsd.get(), 
+                    "vsd":status_vsd.get(), "load_feedback":status_load_feedback.get(), "BUS_interface":status_bus_interface.get(),
+                    "O2_trim":status_o2_trim.get(), "O2_system":status_o2_system.get()}
 
 
     if float(chosen_burner.motor_rating.replace(",","."))>=55:
         del equipment_dict["star_delta"]
 
-    main_set={"burner","fuel_fitting_station","SSV","silencer","booster_station","flow_meter"}
+    main_set={"burner","fuel_fitting_station","SSV","silencer","booster_station","flow_meter","gas_control_section"}
     control_set={"seavis","star_delta","monoblock_vsd","seavis_vsd","vsd",
                 "load_feedback","BUS_interface","O2_trim","O2_system","flame_monitoring"}
 
@@ -278,7 +282,15 @@ def quotation_maker():
                         bold_Arial10_format,burner_field_10,
                         b_format)
 
-        ws.write_formula(c_cell,prices["Burner Mono"][str(chosen_burner)],c_format)
+        if chosen_burner in Burners["NG/LFO"][12:]:
+            if capacity <= 18.6:
+                add_price = prices["fuel_fitting_station"]["18,6"]
+            elif capacity > 18.6:
+                add_price = prices["fuel_fitting_station"]["26,1"]
+            burner_price = prices["Burner Mono"][str(chosen_burner)] + add_price
+        else:
+            burner_price = prices["Burner Mono"][str(chosen_burner)]
+        ws.write_formula(c_cell,burner_price,c_format)
 
 
     def SSV_field(b_cell,c_cell):
@@ -295,6 +307,22 @@ def quotation_maker():
                             b_format)
         ws.write_formula(c_cell,prices["SSV"][chosen_SSV.diameter()],c_format)
         ws.set_row(int(b_cell[1:])-1,96.75)
+
+    def gas_control_section_field(b_cell,c_cell):
+        chosen_gas_control_section = Gas_control_section(capacity)
+        
+        gas_control_section_field_1 = "Газовый регулирующий участок"
+        gas_control_section_field_2 = (f" высокого давления {chosen_gas_control_section.size()[0]}-{chosen_gas_control_section.size()[1]}/{chosen_gas_control_section.size()[2]}-{chosen_gas_control_section.size()[3]} "
+                                    f"для расхода газа {chosen_gas_control_section.max_flow()} нм³/час., входное давление газа – 3 бар, {chosen_gas_control_section.max_pressure()} бар макс., "
+                                    "температура газа -10...50 °C, температура окружающей среды -10...60 °C. \n"
+                                    f"Состав: ручная запорная заслонка DN {chosen_gas_control_section.size()[0]}, фильтр DN {chosen_gas_control_section.size()[0]}, "
+                                    f"регулятор давления газа DN {chosen_gas_control_section.size()[2]} со встроенным ПЗК, "
+                                    "ПСК, термометр, шаровой кран/вентиляция, два манометра с отсечными кранами.")
+        ws.write_rich_string(b_cell,
+                            bold_Arial10_format,gas_control_section_field_1,
+                            stand_Arial10_format,gas_control_section_field_2,
+                            b_format)
+        ws.write_formula(c_cell,prices["gas_control_section"][chosen_gas_control_section.price_str()],c_format)
 
     def silencer_field(b_cell,c_cell):
         chosen_silencer=Silencer(chosen_burner)
@@ -466,7 +494,7 @@ def quotation_maker():
         ws.write(e_cell,1,d_e_f_format)
         ws.write(f_cell,1.12,d_e_f_format)
         g_formula="=ROUND(("+c_cell+"-("+c_cell+"/100)*"+d_cell+")*"+e_cell+"*"+f_cell+",2)"
-        
+
         ws.write_formula(g_cell,g_formula,g_h_i_k_format)
         h_formula="=ROUND("+g_cell+"*0.2,2)"
         ws.write_formula(h_cell,h_formula,g_h_i_k_format)
@@ -477,9 +505,10 @@ def quotation_maker():
         ws.write_formula(k_cell,k_formula,g_h_i_k_format)
     
 
-    function_list={"burner":burner_field,"SSV":SSV_field,"booster_station":booster_station_field,"flow_meter":flow_meter_field,"silencer":silencer_field,"flame_monitoring":flame_monitoring_field,"seavis":seavis_field,"star_delta":star_delta_field,
-                "monoblock_vsd":monoblock_vsd_field,"seavis_vsd":seavis_vsd_field,"vsd":vsd_field,"load_feedback":load_feedback_field,
-                "BUS_interface":bus_interface_field,"O2_trim":o2_trim_field,"O2_system":o2_system_field, "fuel_fitting_station":fuel_fitting_station_field}
+    function_list={"burner":burner_field, "SSV":SSV_field, "gas_control_section":gas_control_section_field, "booster_station":booster_station_field,
+                "flow_meter":flow_meter_field, "silencer":silencer_field, "flame_monitoring":flame_monitoring_field, "seavis":seavis_field, "star_delta":star_delta_field,
+                "monoblock_vsd":monoblock_vsd_field, "seavis_vsd":seavis_vsd_field, "vsd":vsd_field, "load_feedback":load_feedback_field,
+                "BUS_interface":bus_interface_field, "O2_trim":o2_trim_field, "O2_system":o2_system_field, "fuel_fitting_station":fuel_fitting_station_field}
 
     current_string=15
     current_number=1
@@ -515,7 +544,7 @@ def quotation_maker():
 
     ws.write("B"+str(current_string),"НДС, 20%",bold_Arial11_format)
     nds_1_burner="=H" + str(result_rows[0])
-    for row in result_rows:
+    for row in result_rows[1:]:
         nds_1_burner += "+H" + str(row)
     ws.write_formula("K"+str(current_string),nds_1_burner,result_format)
 
@@ -530,7 +559,7 @@ def quotation_maker():
     ws.write("A"+str(current_string),"(без дополнительного оборудования) на условиях поставки DDP Москва,",bold_Arial11_format)
     current_string+=1
     ws.write("A"+str(current_string),f"включая 20% НДС, нетто (со скидкой для {entry_company.get()}):",bold_Arial11_format)
-    ws.write_formula("K"+str(current_string),"=K" + str(summation_string) + "K" + str(summation_string+2),result_format)
+    ws.write_formula("K"+str(current_string),"=K" + str(summation_string) + "+K" + str(summation_string+2),result_format)
     result_string_1_burner=current_string
 
     if number_of_burners>1:
@@ -677,46 +706,41 @@ def new_project():
 
     def complectation():
         
-        if window.grid_slaves(1,1):
+        if frame_complectation.winfo_children():
             for widget in frame_complectation.winfo_children():
+                print(widget)
                 widget.grid_forget()
         frame_complectation.grid(row=1,column=1,padx=10, pady=10)
         
-
         
         Label(frame_complectation,text="Main").grid(row=0,column=1)
         Label(frame_complectation,text="Optional").grid(row=0,column=2)
         Label(frame_complectation,text="Delete").grid(row=0,column=3)
+
+        equipment_list_NG = [equipment_SSV_radiobutton, equipment_flame_monitoring_radiobutton, equipment_seavis_radiobutton,
+                            equipment_star_delta_radiobutton, equipment_gas_control_section, equipment_silencer_radiobutton, 
+                            equipment_monoblock_vsd_radiobutton, equipment_seavis_vsd_radiobutton, equipment_vsd_radiobutton, 
+                            equipment_load_feedback_radiobutton, equipment_bus_interface_radiobutton, 
+                            equipment_o2_trim_radiobutton, equipment_o2_system_radiobutton]
+
+        equipment_list_NG_LFO = [equipment_SSV_radiobutton, equipment_booster_station_radiobutton, equipment_flow_meter_radiobutton,
+                            equipment_flame_monitoring_radiobutton, equipment_seavis_radiobutton,
+                            equipment_star_delta_radiobutton, equipment_gas_control_section, equipment_silencer_radiobutton, 
+                            equipment_monoblock_vsd_radiobutton, equipment_seavis_vsd_radiobutton,
+                            equipment_vsd_radiobutton, equipment_load_feedback_radiobutton, equipment_bus_interface_radiobutton, 
+                            equipment_o2_trim_radiobutton, equipment_o2_system_radiobutton]
+
+        if fuel=="NG/LFO" and chosen_burner in Burners["NG/LFO"][12:]:
+            equipment_list_NG_LFO.insert(1,equipment_fuel_fitting_station_radiobutton)
+
         if fuel=="NG":
-            equipment_SSV_radiobutton()
-            equipment_flame_monitoring_radiobutton()
-            equipment_seavis_radiobutton()
-            equipment_star_delta_radiobutton()
-            equipment_silencer_radiobutton()
-            equipment_monoblock_vsd_radiobutton()
-            equipment_seavis_vsd_radiobutton()
-            equipment_vsd_radiobutton()
-            equipment_load_feedback_radiobutton()
-            equipment_bus_interface_radiobutton()
-            equipment_o2_trim_radiobutton()
-            equipment_o2_system_radiobutton()
+            for row_, func in enumerate(equipment_list_NG,start=1):
+                func(row_)
+            
         if fuel=="NG/LFO":
-            equipment_SSV_radiobutton()
-            equipment_flame_monitoring_radiobutton()
-            equipment_seavis_radiobutton()
-            equipment_star_delta_radiobutton()
-            equipment_silencer_radiobutton()
-            equipment_monoblock_vsd_radiobutton()
-            equipment_seavis_vsd_radiobutton()
-            equipment_vsd_radiobutton()
-            equipment_load_feedback_radiobutton()
-            equipment_bus_interface_radiobutton()
-            equipment_o2_trim_radiobutton()
-            equipment_o2_system_radiobutton()
-            equipment_booster_station_radiobutton()
-            equipment_flow_meter_radiobutton()
-        if chosen_burner in [GL_200_37,GL_200_45,GL_200_55,GL_200_75,GL_280_75]:
-            equipment_fuel_fitting_station_radiobutton()
+            for row_, func in enumerate(equipment_list_NG_LFO,start=1):
+                func(row_)
+
         
     common_data()
     complectation()
@@ -736,139 +760,148 @@ frame_chooser=LabelFrame(left_frame,text="Teminox chooser",container=False,heigh
 
 
 
-def equipment_SSV_radiobutton():
-    Label(frame_complectation,text="SSV").grid(row=1,column=0,sticky=W)
+def equipment_SSV_radiobutton(row_):
+    Label(frame_complectation,text="SSV").grid(row=row_,column=0,sticky=W)
     global status_SSV
     status_SSV=StringVar()
-    Radiobutton(frame_complectation,variable=status_SSV,value="main").grid(row=1,column=1)
-    Radiobutton(frame_complectation,variable=status_SSV,value="option").grid(row=1,column=2)
-    Radiobutton(frame_complectation,variable=status_SSV,value="delete").grid(row=1,column=3)
+    Radiobutton(frame_complectation,variable=status_SSV,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_SSV,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_SSV,value="delete").grid(row=row_,column=3)
     status_SSV.set("main")
 
-def equipment_flame_monitoring_radiobutton():
-    Label(frame_complectation,text="Flame_monitoring").grid(row=2,column=0,sticky=W)
+def equipment_gas_control_section(row_):
+    Label(frame_complectation,text="Gas_control_section").grid(row=row_,column=0,sticky=W)
+    global status_gas_control_section
+    status_gas_control_section=StringVar()
+    Radiobutton(frame_complectation,variable=status_gas_control_section,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_gas_control_section,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_gas_control_section,value="delete").grid(row=row_,column=3)
+    status_gas_control_section.set("option")
+
+def equipment_flame_monitoring_radiobutton(row_):
+    Label(frame_complectation,text="Flame_monitoring").grid(row=row_,column=0,sticky=W)
     global status_flame_monitoring
     status_flame_monitoring=StringVar()
-    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="main").grid(row=2,column=1)
-    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="option").grid(row=2,column=2)
-    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="delete").grid(row=2,column=3)
+    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_flame_monitoring,value="delete").grid(row=row_,column=3)
     status_flame_monitoring.set("main")
 
-def equipment_seavis_radiobutton():
-    Label(frame_complectation,text="se@vis").grid(row=3,column=0,sticky=W)
+def equipment_seavis_radiobutton(row_):
+    Label(frame_complectation,text="se@vis").grid(row=row_,column=0,sticky=W)
     global status_seavis
     status_seavis=StringVar()
-    Radiobutton(frame_complectation,variable=status_seavis,value="main").grid(row=3,column=1)
-    Radiobutton(frame_complectation,variable=status_seavis,value="option").grid(row=3,column=2)
-    Radiobutton(frame_complectation,variable=status_seavis,value="delete").grid(row=3,column=3)
+    Radiobutton(frame_complectation,variable=status_seavis,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_seavis,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_seavis,value="delete").grid(row=row_,column=3)
     status_seavis.set("main")
 
-def equipment_star_delta_radiobutton():
-    Label(frame_complectation,text="star-delta").grid(row=4,column=0,sticky=W)
+def equipment_star_delta_radiobutton(row_):
+    Label(frame_complectation,text="star-delta").grid(row=row_,column=0,sticky=W)
     global status_star_delta
     status_star_delta=StringVar()
-    Radiobutton(frame_complectation,variable=status_star_delta,value="main").grid(row=4,column=1)
-    Radiobutton(frame_complectation,variable=status_star_delta,value="option").grid(row=4,column=2)
-    Radiobutton(frame_complectation,variable=status_star_delta,value="delete").grid(row=4,column=3)
+    Radiobutton(frame_complectation,variable=status_star_delta,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_star_delta,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_star_delta,value="delete").grid(row=row_,column=3)
     status_star_delta.set("main")
 
-def equipment_silencer_radiobutton():
-    Label(frame_complectation,text="silencer").grid(row=5,column=0,sticky=W)
+def equipment_silencer_radiobutton(row_):
+    Label(frame_complectation,text="silencer").grid(row=row_,column=0,sticky=W)
     global status_silencer
     status_silencer=StringVar()
-    Radiobutton(frame_complectation,variable=status_silencer,value="main").grid(row=5,column=1)
-    Radiobutton(frame_complectation,variable=status_silencer,value="option").grid(row=5,column=2)
-    Radiobutton(frame_complectation,variable=status_silencer,value="delete").grid(row=5,column=3)
+    Radiobutton(frame_complectation,variable=status_silencer,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_silencer,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_silencer,value="delete").grid(row=row_,column=3)
     status_silencer.set("option")
 
-def equipment_monoblock_vsd_radiobutton():
-    Label(frame_complectation,text="Monoblock VSD").grid(row=6,column=0,sticky=W)
+def equipment_monoblock_vsd_radiobutton(row_):
+    Label(frame_complectation,text="Monoblock VSD").grid(row=row_,column=0,sticky=W)
     global status_monoblock_vsd
     status_monoblock_vsd=StringVar()
-    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="main").grid(row=6,column=1)
-    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="option").grid(row=6,column=2)
-    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="delete").grid(row=6,column=3)
+    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_monoblock_vsd,value="delete").grid(row=row_,column=3)
     status_monoblock_vsd.set("option")
 
-def equipment_seavis_vsd_radiobutton():
-    Label(frame_complectation,text="Se@vis VSD").grid(row=7,column=0,sticky=W)
+def equipment_seavis_vsd_radiobutton(row_):
+    Label(frame_complectation,text="Se@vis VSD").grid(row=row_,column=0,sticky=W)
     global status_seavis_vsd
     status_seavis_vsd=StringVar()
-    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="main").grid(row=7,column=1)
-    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="option").grid(row=7,column=2)
-    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="delete").grid(row=7,column=3)
+    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_seavis_vsd,value="delete").grid(row=row_,column=3)
     status_seavis_vsd.set("option")
 
-def equipment_vsd_radiobutton():
-    Label(frame_complectation,text="VSD").grid(row=8,column=0,sticky=W)
+def equipment_vsd_radiobutton(row_):
+    Label(frame_complectation,text="VSD").grid(row=row_,column=0,sticky=W)
     global status_vsd
     status_vsd=StringVar()
-    Radiobutton(frame_complectation,variable=status_vsd,value="main").grid(row=8,column=1)
-    Radiobutton(frame_complectation,variable=status_vsd,value="option").grid(row=8,column=2)
-    Radiobutton(frame_complectation,variable=status_vsd,value="delete").grid(row=8,column=3)
+    Radiobutton(frame_complectation,variable=status_vsd,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_vsd,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_vsd,value="delete").grid(row=row_,column=3)
     status_vsd.set("option")
 
-def equipment_load_feedback_radiobutton():
-    Label(frame_complectation,text="load_feedback").grid(row=9,column=0,sticky=W)
+def equipment_load_feedback_radiobutton(row_):
+    Label(frame_complectation,text="load_feedback").grid(row=row_,column=0,sticky=W)
     global status_load_feedback
     status_load_feedback=StringVar()
-    Radiobutton(frame_complectation,variable=status_load_feedback,value="main").grid(row=9,column=1)
-    Radiobutton(frame_complectation,variable=status_load_feedback,value="option").grid(row=9,column=2)
-    Radiobutton(frame_complectation,variable=status_load_feedback,value="delete").grid(row=9,column=3)
+    Radiobutton(frame_complectation,variable=status_load_feedback,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_load_feedback,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_load_feedback,value="delete").grid(row=row_,column=3)
     status_load_feedback.set("option")
 
-def equipment_bus_interface_radiobutton():
-    Label(frame_complectation,text="BUS_interface").grid(row=10,column=0,sticky=W)
+def equipment_bus_interface_radiobutton(row_):
+    Label(frame_complectation,text="BUS_interface").grid(row=row_,column=0,sticky=W)
     global status_bus_interface
     status_bus_interface=StringVar()
-    Radiobutton(frame_complectation,variable=status_bus_interface,value="main").grid(row=10,column=1)
-    Radiobutton(frame_complectation,variable=status_bus_interface,value="option").grid(row=10,column=2)
-    Radiobutton(frame_complectation,variable=status_bus_interface,value="delete").grid(row=10,column=3)
+    Radiobutton(frame_complectation,variable=status_bus_interface,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_bus_interface,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_bus_interface,value="delete").grid(row=row_,column=3)
     status_bus_interface.set("option")
 
-def equipment_o2_trim_radiobutton():
-    Label(frame_complectation,text="O2_trim").grid(row=11,column=0,sticky=W)
+def equipment_o2_trim_radiobutton(row_):
+    Label(frame_complectation,text="O2_trim").grid(row=row_,column=0,sticky=W)
     global status_o2_trim
     status_o2_trim=StringVar()
-    Radiobutton(frame_complectation,variable=status_o2_trim,value="main").grid(row=11,column=1)
-    Radiobutton(frame_complectation,variable=status_o2_trim,value="option").grid(row=11,column=2)
-    Radiobutton(frame_complectation,variable=status_o2_trim,value="delete").grid(row=11,column=3)
+    Radiobutton(frame_complectation,variable=status_o2_trim,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_o2_trim,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_o2_trim,value="delete").grid(row=row_,column=3)
     status_o2_trim.set("option")
 
-def equipment_o2_system_radiobutton():
-    Label(frame_complectation,text="O2_system").grid(row=12,column=0,sticky=W)
+def equipment_o2_system_radiobutton(row_):
+    Label(frame_complectation,text="O2_system").grid(row=row_,column=0,sticky=W)
     global status_o2_system
     status_o2_system=StringVar()
-    Radiobutton(frame_complectation,variable=status_o2_system,value="main").grid(row=12,column=1)
-    Radiobutton(frame_complectation,variable=status_o2_system,value="option").grid(row=12,column=2)
-    Radiobutton(frame_complectation,variable=status_o2_system,value="delete").grid(row=12,column=3)
+    Radiobutton(frame_complectation,variable=status_o2_system,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_o2_system,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_o2_system,value="delete").grid(row=row_,column=3)
     status_o2_system.set("option")
 
-def equipment_booster_station_radiobutton():
-    Label(frame_complectation,text="Booster station").grid(row=13,column=0,sticky=W)
+def equipment_booster_station_radiobutton(row_):
+    Label(frame_complectation,text="Booster station").grid(row=row_,column=0,sticky=W)
     global status_booster_station
     status_booster_station=StringVar()
-    Radiobutton(frame_complectation,variable=status_booster_station,value="main").grid(row=13,column=1)
-    Radiobutton(frame_complectation,variable=status_booster_station,value="option").grid(row=13,column=2)
-    Radiobutton(frame_complectation,variable=status_booster_station,value="delete").grid(row=13,column=3)
+    Radiobutton(frame_complectation,variable=status_booster_station,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_booster_station,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_booster_station,value="delete").grid(row=row_,column=3)
     status_booster_station.set("main")
 
-def equipment_flow_meter_radiobutton():
-    Label(frame_complectation,text="Flow meter").grid(row=14,column=0,sticky=W)
+def equipment_flow_meter_radiobutton(row_):
+    Label(frame_complectation,text="Flow meter").grid(row=row_,column=0,sticky=W)
     global status_flow_meter
     status_flow_meter=StringVar()
-    Radiobutton(frame_complectation,variable=status_flow_meter,value="main").grid(row=14,column=1)
-    Radiobutton(frame_complectation,variable=status_flow_meter,value="option").grid(row=14,column=2)
-    Radiobutton(frame_complectation,variable=status_flow_meter,value="delete").grid(row=14,column=3)
+    Radiobutton(frame_complectation,variable=status_flow_meter,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_flow_meter,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_flow_meter,value="delete").grid(row=row_,column=3)
     status_flow_meter.set("main")
 
-def equipment_fuel_fitting_station_radiobutton():
-    Label(frame_complectation,text="Fuel fitting station").grid(row=15,column=0,sticky=W)
+def equipment_fuel_fitting_station_radiobutton(row_):
+    Label(frame_complectation,text="Fuel fitting station").grid(row=row_,column=0,sticky=W)
     global status_fuel_fitting_station
     status_fuel_fitting_station=StringVar()
-    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="main").grid(row=15,column=1)
-    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="option").grid(row=15,column=2)
-    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="delete").grid(row=15,column=3)
+    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="main").grid(row=row_,column=1)
+    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="option").grid(row=row_,column=2)
+    Radiobutton(frame_complectation,variable=status_fuel_fitting_station,value="delete").grid(row=row_,column=3)
     status_fuel_fitting_station.set("main")
 
 def calculate():
