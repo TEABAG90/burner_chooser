@@ -642,6 +642,10 @@ def quotation_maker():
     merged_range="A" + str(current_string) + ":" + "K" + str(current_string)
     ws.merge_range(merged_range,"Гарантия на оборудование - 12 мес. с момента пуска, но не более 18 мес. с момента поставки",header_format)
 
+    current_string+=1
+    merged_range="A" + str(current_string) + ":" + "K" + str(current_string)
+    ws.merge_range(merged_range,"Предложение действительно в течение одного месяца с даты выдачи",header_format)
+    
     current_string+=2
     merged_range="A" + str(current_string) + ":" + "K" + str(current_string)
     ws.merge_range(merged_range,"Для продления срока действия предложения, внесения изменений в техническую и",header_italic_format)
